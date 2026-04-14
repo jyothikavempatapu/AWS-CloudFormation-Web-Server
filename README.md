@@ -1,4 +1,3 @@
-# -AWS-CloudFormation-Web-Server
 # ☁️ AWS CloudFormation Web Server
 
 > Infrastructure as Code — EC2 + Nginx + Security Groups on AWS
