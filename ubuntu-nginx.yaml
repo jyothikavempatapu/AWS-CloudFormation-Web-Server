@@ -1,0 +1,74 @@
+---
+Description: Setting up an Ubuntu Web Server (in the US East)
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 keypair to enable SSH access.
+    AllowedPattern: ".+"
+    
+  SSHCIDR:
+    Type: String
+    Description: The CIDR block for restricting SSH access.
+    MinLength: 10
+    Default: 131.247.0.0/16
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-07d9b9ddc6cd8dd30
+      InstanceType: t2.micro
+      SecurityGroups:
+      - !Ref WebserverSecurityGroup
+      Tags:
+      - Key: Name
+        Value: Ubuntu Web Server with Nginx on AWS
+      KeyName: !Ref KeyName
+      UserData:
+        'Fn::Base64': |
+          #!/bin/bash -x
+          
+          export DEBIAN_FRONTEND=noninteractive
+
+          #set timezone
+          timedatectl set-timezone America/New_York
+          
+          #update system and installing nginx
+          apt update
+          apt install -y nginx
+        
+          #create our own homepage
+          cd /var/www/html
+          echo "<title>Jyothika</title>" > index.html
+          echo "<h1>Jyothika's Cloud Formation Server</h1>" >> index.html
+          echo "<p>AWS Region ":" $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> index.html 
+          echo "<p>Public DNS ":" $(curl http://169.254.169.254/latest/meta-data/public-hostname)</p>" >> index.html
+        
+  WebserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows HTTP and SSH
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+      - CidrIp: !Ref SSHCIDR
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        
+  
+Outputs:
+  WebURL:
+    Description: The URL for the web page.
+    Value: !Sub 'http://${EC2Instance.PublicIp}'
+  PublicDNS:
+    Description: The AWS public DNS name for the instance.
+    Value: !Sub '${EC2Instance.PublicDnsName}'
+  Region:
+    Description: The region.
+    Value: !Ref 'AWS::Region'
